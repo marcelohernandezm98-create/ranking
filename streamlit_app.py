@@ -60,9 +60,16 @@ def calcular_salida_base(hora):
     elif hora <= time(9, 0): return 2
     else: return 0
 
+# Función para Merma (Mantiene lógica decimal 0.05 = 5%)
 def calcular_rango_porcentajes(valor, max_pts, mid_pts):
     if valor <= 0.05: return max_pts
     elif valor <= 0.10: return mid_pts
+    else: return 0
+
+# NUEVA Función exclusiva para OOS (Escala 0-100, Objetivo 0.5%)
+def calcular_oos(valor, max_pts, mid_pts):
+    if valor <= 0.5: return max_pts  # Objetivo Oro: 0.5%
+    elif valor <= 1.0: return mid_pts # Objetivo Plata: 1.0%
     else: return 0
 
 # ==========================================
@@ -111,7 +118,7 @@ if menu == "📝 Registrar Evaluación":
             arq = c1.selectbox("Arquetipo CEDI", list(ARQUETIPOS.keys()))
             monto = c2.number_input("Diferencia Inventario $", 0.0)
             pts_inv = 25 if monto <= ARQUETIPOS[arq] else 0
-            merma = st.number_input("Merma CEDI", 0.0, 1.0, 0.05, format="%.3f")
+            merma = st.number_input("Merma CEDI (Decimal: 0.05 = 5%)", 0.0, 1.0, 0.05, format="%.3f")
             pts_merma = calcular_rango_porcentajes(merma, 10, 5)
             rotura = st.radio("Rotura Garrafón", ["En Objetivo", "Fuera de Objetivo"])
             pts_rot = 10 if rotura == "En Objetivo" else 0
@@ -135,14 +142,17 @@ if menu == "📝 Registrar Evaluación":
             desglose_txt = f"Salida:{pts_s} | Visita:{pts_v} | FR:{pts_fr} | Prox:{pts_pr}"
 
         elif perfil == "Jefe SAC APT":
-            st.info("Configuración APT Original.")
-            oos = st.number_input("OOS %", 0.0, 1.0, 0.05, format="%.3f")
-            pts_oos = calcular_rango_porcentajes(oos, 20, 10)
+            st.info("Configuración APT Original. OOS Objetivo: 0.5%")
+            # OOS actualizado: Escala 0-100, valor por defecto 0.5
+            oos = st.number_input("OOS % (Escala 0-100. Ej: 0.5)", 0.0, 100.0, 0.5, step=0.1)
+            pts_oos = calcular_oos(oos, 20, 10)
+            
             c1, c2 = st.columns(2)
             arq = c1.selectbox("Arquetipo CEDI", list(ARQUETIPOS.keys()))
             monto = c2.number_input("Diferencia Inventario $", 0.0)
             pts_inv = 40 if monto <= ARQUETIPOS[arq] else 0
-            merma = st.number_input("Merma CEDI", 0.0, 1.0, 0.05)
+            
+            merma = st.number_input("Merma CEDI (Decimal: 0.05 = 5%)", 0.0, 1.0, 0.05)
             pts_merma = calcular_rango_porcentajes(merma, 20, 10)
             rotura = st.radio("Rotura Garrafón", ["En Objetivo", "Fuera de Objetivo"])
             pts_rot = 20 if rotura == "En Objetivo" else 0
@@ -168,14 +178,17 @@ if menu == "📝 Registrar Evaluación":
             desglose_txt = f"Salida:{pts_s} | Visita:{pts_v} | E.Perf:{pts_ep} | Prox:{pts_pr} | Falseo:{pts_fal}"
 
         elif perfil == "Jefe/Sup APT Garrafón/embotellado":
-            st.info("Configuración APT Mixto.")
-            oos = st.number_input("OOS %", 0.0, 1.0, 0.05, format="%.3f")
-            pts_oos = calcular_rango_porcentajes(oos, 20, 10) 
+            st.info("Configuración APT Mixto. OOS Objetivo: 0.5%")
+            # OOS actualizado
+            oos = st.number_input("OOS % (Escala 0-100. Ej: 0.5)", 0.0, 100.0, 0.5, step=0.1)
+            pts_oos = calcular_oos(oos, 20, 10)
+            
             c1, c2 = st.columns(2)
             arq = c1.selectbox("Arquetipo CEDI", list(ARQUETIPOS.keys()))
             monto = c2.number_input("Diferencia Inventario $", 0.0)
             pts_inv = 30 if monto <= ARQUETIPOS[arq] else 0
-            merma = st.number_input("Merma CEDI", 0.0, 1.0, 0.05, format="%.3f")
+            
+            merma = st.number_input("Merma CEDI (Decimal: 0.05 = 5%)", 0.0, 1.0, 0.05, format="%.3f")
             pts_merma = calcular_rango_porcentajes(merma, 20, 10)
             rotura = st.radio("Rotura Garrafón", ["En Objetivo", "Fuera de Objetivo"])
             pts_rot = 20 if rotura == "En Objetivo" else 0
@@ -186,14 +199,17 @@ if menu == "📝 Registrar Evaluación":
             desglose_txt = f"OOS:{pts_oos} | Inv:{pts_inv} | Merma:{pts_merma} | Rot:{pts_rot} | Salida:{pts_salida}"
 
         elif perfil == "Jefe/Sup APT Embotellado":
-            st.info("Configuración APT Embotellado.")
-            oos = st.number_input("OOS %", 0.0, 1.0, 0.05, format="%.3f")
-            pts_oos = calcular_rango_porcentajes(oos, 25, 12)
+            st.info("Configuración APT Embotellado. OOS Objetivo: 0.5%")
+            # OOS actualizado
+            oos = st.number_input("OOS % (Escala 0-100. Ej: 0.5)", 0.0, 100.0, 0.5, step=0.1)
+            pts_oos = calcular_oos(oos, 25, 12)
+            
             c1, c2 = st.columns(2)
             arq = c1.selectbox("Arquetipo CEDI", list(ARQUETIPOS.keys()))
             monto = c2.number_input("Diferencia Inventario $", 0.0)
             pts_inv = 40 if monto <= ARQUETIPOS[arq] else 0
-            merma = st.number_input("Merma CEDI", 0.0, 1.0, 0.05, format="%.3f")
+            
+            merma = st.number_input("Merma CEDI (Decimal: 0.05 = 5%)", 0.0, 1.0, 0.05, format="%.3f")
             pts_merma = calcular_rango_porcentajes(merma, 25, 12)
             t_salida = st.time_input("Salida de Rutas", time(7, 30), step=60)
             pts_salida = calcular_salida_base(t_salida)
@@ -303,7 +319,6 @@ elif menu == "🏆 Ver Rankings":
         
         password = st.text_input("Contraseña:", type="password")
         
-        # AQUÍ SE DEFINE LA CONTRASEÑA
         if password == "SAC2026":
             @st.cache_data
             def convert_df(df): return df.to_csv(index=False).encode('utf-8')
