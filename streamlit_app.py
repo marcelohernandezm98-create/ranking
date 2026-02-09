@@ -71,6 +71,136 @@ def calcular_rango_porcentajes(valor, max_pts, mid_pts):
 if menu == "📝 Registrar Evaluación":
     st.title("Nueva Evaluación")
     
+    col1, col2 = st.columns(2)
+    perfil = col1.selectbox("Perfil", [
+        "Jefe SAC Mixto", "Jefe SAC Entrega", "JT Mixto", "Jefe SAC APT", 
+        "JT Garrafón", "Jefe/Sup APT Garrafón/embotellado", "Jefe/Sup APT Embotellado"
+    ])
+    nombre = col2.text_input("Nombre Completo")
+    
+    col3, col4 = st.columns(2)
+    cedis = col3.text_input("CEDIS")
+    zona = col4.text_input("Zona")
+
+    st.subheader("Periodo a Evaluar")
+    c_mes, c_ano = st.columns(2)
+    mes_actual_idx = datetime.now().month - 1
+    mes_eval = c_mes.selectbox("Mes", MESES, index=mes_actual_idx)
+    ano_eval = c_ano.number_input("Año", min_value=2024, max_value=2030, value=datetime.now().year)
+
+    st.markdown("---")
+
+    with st.form("form_eval"):
+        pts_totales = 0
+        desglose_txt = "" 
+        
+        # --- LÓGICA DE PERFILES ---
+        if perfil == "Jefe SAC Mixto":
+            st.info("Configuración Mixto: Salida(10), Visita(10), FillRate(25), Prox(10), Inv(25), Merma(10), Rotura(10)")
+            t_salida = st.time_input("Salida de Rutas", time(7, 30), step=60)
+            pts_s = calcular_salida_base(t_salida)
+            t_visita = st.time_input("Visita 1er Cliente", time(8, 30), step=60)
+            pts_v = calcular_visita_base(t_visita)
+            fr = st.number_input("Fill Rate %", 0.0, 100.0, 98.0, step=0.1)
+            pts_fr = 25 if fr >= 98 else (15 if fr >= 97 else (5 if fr >= 96 else 0))
+            pr = st.number_input("Proximidad %", 0.0, 100.0, 98.0, step=0.1)
+            pts_pr = 10 if pr >= 98 else (7 if pr >= 97 else (5 if pr >= 96 else 0))
+            c1, c2 = st.columns(2)
+            arq = c1.selectbox("Arquetipo CEDI", list(ARQUETIPOS.keys()))
+            monto = c2.number_input("Diferencia Inventario $", 0.0)
+            pts_inv = 25 if monto <= ARQUETIPOS[arq] else 0
+            merma = st.number_input("Merma CEDI", 0.0, 1.0, 0.05, format="%.3f")
+            pts_merma = calcular_rango_porcentajes(merma, 10, 5)
+            rotura = st.radio("Rotura Garrafón", ["En Objetivo", "Fuera de Objetivo"])
+            pts_rot = 10 if rotura == "En Objetivo" else 0
+            
+            pts_totales = pts_s + pts_v + pts_fr + pts_pr + pts_inv + pts_merma + pts_rot
+            desglose_txt = f"Salida:{pts_s} | Visita:{pts_v} | FR:{pts_fr} | Prox:{pts_pr} | Inv:{pts_inv} | Merma:{pts_merma} | Rot:{pts_rot}"
+
+        elif perfil == "Jefe SAC Entrega" or perfil == "JT Mixto":
+            st.info(f"Configuración {perfil}: Pesos Altos.")
+            c1, c2 =
+
+
+Obtener Outlook para Android
+From: Hernandez, Marcelo <Marcelo.Hernandez@gepp.com>
+Sent: Monday, February 9, 2026 1:52:01 PM
+To: Hernandez, Marcelo <Marcelo.Hernandez@gepp.com>
+Subject: Va
+ 
+import streamlit as st
+import pandas as pd
+from datetime import time, datetime
+import os
+
+# --- CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="Ranking SAC Pro", layout="centered", page_icon="🏆")
+
+# --- BASE DE DATOS LOCAL (CSV) ---
+DB_FILE = "historial_ranking.csv"
+
+# --- CONSTANTES ---
+MESES = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+]
+ARQUETIPOS = {"E": 500, "D": 1000, "C": 2000, "B": 4000, "A": 10000}
+
+def guardar_datos(datos):
+    df_nuevo = pd.DataFrame([datos])
+    if not os.path.isfile(DB_FILE):
+        df_nuevo.to_csv(DB_FILE, index=False)
+    else:
+        df_nuevo.to_csv(DB_FILE, mode='a', header=False, index=False)
+
+# --- BARRA LATERAL ---
+st.sidebar.markdown(
+    """
+    <div style='text-align: center; font-size: 60px; font-weight: bold; color: #4169E1; line-height: 1.2;'>
+        SAC
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+st.sidebar.markdown(
+    """
+    <div style='text-align: center; font-style: italic; font-size: 14px; margin-bottom: 30px; color: #555;'>
+        “Servicio no es solo entregar el producto, es dar confianza, respeto y soluciones”
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+st.sidebar.title("Menú Principal")
+menu = st.sidebar.radio("Ir a:", ["📝 Registrar Evaluación", "🏆 Ver Rankings"])
+
+# ==========================================
+# LÓGICA DE CÁLCULO
+# ==========================================
+def calcular_visita_base(hora):
+    if hora <= time(8, 30): return 10
+    elif hora <= time(9, 0): return 5
+    elif hora <= time(10, 0): return 2
+    else: return 0
+
+def calcular_salida_base(hora):
+    if hora <= time(7, 30): return 10
+    elif hora <= time(8, 0): return 5
+    elif hora <= time(9, 0): return 2
+    else: return 0
+
+def calcular_rango_porcentajes(valor, max_pts, mid_pts):
+    if valor <= 0.05: return max_pts
+    elif valor <= 0.10: return mid_pts
+    else: return 0
+
+# ==========================================
+# SECCIÓN 1: REGISTRO
+# ==========================================
+if menu == "📝 Registrar Evaluación":
+    st.title("Nueva Evaluación")
+    
     # --- DATOS GENERALES ---
     st.subheader("Datos del Colaborador")
     col1, col2 = st.columns(2)
