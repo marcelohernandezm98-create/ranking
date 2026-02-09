@@ -60,16 +60,14 @@ def calcular_salida_base(hora):
     elif hora <= time(9, 0): return 2
     else: return 0
 
-# Función para Merma (Mantiene lógica decimal 0.05 = 5%)
 def calcular_rango_porcentajes(valor, max_pts, mid_pts):
     if valor <= 0.05: return max_pts
     elif valor <= 0.10: return mid_pts
     else: return 0
 
-# NUEVA Función exclusiva para OOS (Escala 0-100, Objetivo 0.5%)
 def calcular_oos(valor, max_pts, mid_pts):
-    if valor <= 0.5: return max_pts  # Objetivo Oro: 0.5%
-    elif valor <= 1.0: return mid_pts # Objetivo Plata: 1.0%
+    if valor <= 0.5: return max_pts
+    elif valor <= 1.0: return mid_pts
     else: return 0
 
 # ==========================================
@@ -78,11 +76,11 @@ def calcular_oos(valor, max_pts, mid_pts):
 if menu == "📝 Registrar Evaluación":
     st.title("Nueva Evaluación")
     
-    # --- DATOS GENERALES ---
     st.subheader("Datos del Colaborador")
     col1, col2 = st.columns(2)
+    # AQUÍ SE ACTUALIZÓ EL NOMBRE A JT EMBOTELLADO
     perfil = col1.selectbox("Perfil", [
-        "Jefe SAC Mixto", "Jefe SAC Entrega", "JT Mixto", "Jefe SAC APT", 
+        "Jefe SAC Mixto", "Jefe SAC Entrega", "JT Embotellado", "Jefe SAC APT", 
         "JT Garrafón", "Jefe/Sup APT Garrafón/embotellado", "Jefe/Sup APT Embotellado"
     ])
     nombre = col2.text_input("Nombre Completo")
@@ -126,7 +124,8 @@ if menu == "📝 Registrar Evaluación":
             pts_totales = pts_s + pts_v + pts_fr + pts_pr + pts_inv + pts_merma + pts_rot
             desglose_txt = f"Salida:{pts_s} | Visita:{pts_v} | FR:{pts_fr} | Prox:{pts_pr} | Inv:{pts_inv} | Merma:{pts_merma} | Rot:{pts_rot}"
 
-        elif perfil == "Jefe SAC Entrega" or perfil == "JT Mixto":
+        # AQUÍ SE ACTUALIZÓ LA LÓGICA PARA RECONOCER EL NUEVO NOMBRE
+        elif perfil == "Jefe SAC Entrega" or perfil == "JT Embotellado":
             st.info(f"Configuración {perfil}: Pesos Altos.")
             c1, c2 = st.columns(2)
             t_salida = c1.time_input("Salida de Rutas", time(7, 30), step=60)
@@ -143,15 +142,12 @@ if menu == "📝 Registrar Evaluación":
 
         elif perfil == "Jefe SAC APT":
             st.info("Configuración APT Original. OOS Objetivo: 0.5%")
-            # OOS actualizado: Escala 0-100, valor por defecto 0.5
             oos = st.number_input("OOS % (Escala 0-100. Ej: 0.5)", 0.0, 100.0, 0.5, step=0.1)
             pts_oos = calcular_oos(oos, 20, 10)
-            
             c1, c2 = st.columns(2)
             arq = c1.selectbox("Arquetipo CEDI", list(ARQUETIPOS.keys()))
             monto = c2.number_input("Diferencia Inventario $", 0.0)
             pts_inv = 40 if monto <= ARQUETIPOS[arq] else 0
-            
             merma = st.number_input("Merma CEDI (Decimal: 0.05 = 5%)", 0.0, 1.0, 0.05)
             pts_merma = calcular_rango_porcentajes(merma, 20, 10)
             rotura = st.radio("Rotura Garrafón", ["En Objetivo", "Fuera de Objetivo"])
@@ -179,15 +175,12 @@ if menu == "📝 Registrar Evaluación":
 
         elif perfil == "Jefe/Sup APT Garrafón/embotellado":
             st.info("Configuración APT Mixto. OOS Objetivo: 0.5%")
-            # OOS actualizado
             oos = st.number_input("OOS % (Escala 0-100. Ej: 0.5)", 0.0, 100.0, 0.5, step=0.1)
             pts_oos = calcular_oos(oos, 20, 10)
-            
             c1, c2 = st.columns(2)
             arq = c1.selectbox("Arquetipo CEDI", list(ARQUETIPOS.keys()))
             monto = c2.number_input("Diferencia Inventario $", 0.0)
             pts_inv = 30 if monto <= ARQUETIPOS[arq] else 0
-            
             merma = st.number_input("Merma CEDI (Decimal: 0.05 = 5%)", 0.0, 1.0, 0.05, format="%.3f")
             pts_merma = calcular_rango_porcentajes(merma, 20, 10)
             rotura = st.radio("Rotura Garrafón", ["En Objetivo", "Fuera de Objetivo"])
@@ -200,15 +193,12 @@ if menu == "📝 Registrar Evaluación":
 
         elif perfil == "Jefe/Sup APT Embotellado":
             st.info("Configuración APT Embotellado. OOS Objetivo: 0.5%")
-            # OOS actualizado
             oos = st.number_input("OOS % (Escala 0-100. Ej: 0.5)", 0.0, 100.0, 0.5, step=0.1)
             pts_oos = calcular_oos(oos, 25, 12)
-            
             c1, c2 = st.columns(2)
             arq = c1.selectbox("Arquetipo CEDI", list(ARQUETIPOS.keys()))
             monto = c2.number_input("Diferencia Inventario $", 0.0)
             pts_inv = 40 if monto <= ARQUETIPOS[arq] else 0
-            
             merma = st.number_input("Merma CEDI (Decimal: 0.05 = 5%)", 0.0, 1.0, 0.05, format="%.3f")
             pts_merma = calcular_rango_porcentajes(merma, 25, 12)
             t_salida = st.time_input("Salida de Rutas", time(7, 30), step=60)
@@ -245,39 +235,59 @@ elif menu == "🏆 Ver Rankings":
     st.title("Tablero de Posiciones")
 
     if os.path.isfile(DB_FILE):
-        df = pd.read_csv(DB_FILE)
+        # Cargar dataframe original
+        df_original = pd.read_csv(DB_FILE)
         
-        # --- CORRECCIÓN AUTOMÁTICA ---
-        columnas_faltantes = ["Mes", "Año", "CEDIS", "Zona", "Desglose"]
-        for col in columnas_faltantes:
-            if col not in df.columns:
-                df[col] = "Sin detalles previos"
+        # Corrección de columnas faltantes
+        for col in ["Mes", "Año", "CEDIS", "Zona", "Desglose"]:
+            if col not in df_original.columns: df_original[col] = "Sin detalle"
+        if "Puntaje" in df_original.columns and "Puntaje Total" not in df_original.columns:
+            df_original.rename(columns={"Puntaje": "Puntaje Total"}, inplace=True)
+            df_original.to_csv(DB_FILE, index=False)
+
+        # Copia para filtrar visualmente (sin afectar la base para edición)
+        df_view = df_original.copy()
+
+        # --- BARRA DE FILTROS ---
+        st.markdown("### 🔎 Filtros de Búsqueda")
+        c_ano, c_perfil, c_zona, c_cedis = st.columns(4)
         
-        if "Puntaje" in df.columns and "Puntaje Total" not in df.columns:
-            df.rename(columns={"Puntaje": "Puntaje Total"}, inplace=True)
-            df.to_csv(DB_FILE, index=False)
+        # 1. Filtro Año
+        filtro_ano = c_ano.selectbox("Año", df_view["Año"].unique())
+        df_view = df_view[df_view["Año"] == filtro_ano]
 
-        # --- FILTROS GLOBALES ---
-        col_f1, col_f2 = st.columns(2)
-        filtro_ano = col_f1.selectbox("Filtrar Año", df["Año"].unique())
-        df = df[df["Año"] == filtro_ano]
+        # 2. Filtro Perfil (Multiselección)
+        opciones_perfil = df_view["Perfil"].unique()
+        sel_perfil = c_perfil.multiselect("Perfil", opciones_perfil, placeholder="Todos")
+        if sel_perfil:
+            df_view = df_view[df_view["Perfil"].isin(sel_perfil)]
 
-        # --- PESTAÑAS ---
+        # 3. Filtro Zona (Multiselección)
+        opciones_zona = df_view["Zona"].unique()
+        sel_zona = c_zona.multiselect("Zona", opciones_zona, placeholder="Todas")
+        if sel_zona:
+            df_view = df_view[df_view["Zona"].isin(sel_zona)]
+
+        # 4. Filtro CEDIS (Multiselección)
+        opciones_cedis = df_view["CEDIS"].unique()
+        sel_cedis = c_cedis.multiselect("CEDIS", opciones_cedis, placeholder="Todos")
+        if sel_cedis:
+            df_view = df_view[df_view["CEDIS"].isin(sel_cedis)]
+
+        st.divider()
+
+        # --- PESTAÑAS DE VISUALIZACIÓN ---
         tab1, tab2 = st.tabs(["📅 Ranking Mensual", "📆 Acumulado Anual"])
 
-        # >>> TAB 1: RANKING MENSUAL <<<
         with tab1:
             mes_sel = st.selectbox("Selecciona Mes", MESES)
-            df_mes = df[df["Mes"] == mes_sel]
-
+            df_mes = df_view[df_view["Mes"] == mes_sel]
             if not df_mes.empty:
                 st.markdown(f"### 🏆 Mejores de {mes_sel} {filtro_ano}")
                 df_sorted = df_mes.sort_values(by="Puntaje Total", ascending=False).reset_index(drop=True)
-
                 for i, row in df_sorted.iterrows():
                     rank = i + 1
                     icono = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else f"#{rank}"
-                    
                     with st.container():
                         c1, c2, c3 = st.columns([1, 4, 2])
                         c1.markdown(f"## {icono}")
@@ -287,21 +297,16 @@ elif menu == "🏆 Ver Rankings":
                         c3.metric("Puntos", f"{row['Puntaje Total']:.1f}")
                         st.divider()
             else:
-                st.info(f"No hay evaluaciones registradas para {mes_sel} del {filtro_ano}.")
+                st.info(f"No hay evaluaciones para {mes_sel} del {filtro_ano} con los filtros actuales.")
 
-        # >>> TAB 2: ACUMULADO ANUAL <<<
         with tab2:
-            st.markdown(f"### 📈 Desempeño Anual {filtro_ano} (Promedio)")
-            st.caption("Promedio de puntos totales.")
-            
-            if not df.empty:
-                df_anual = df.groupby(["Nombre", "Perfil", "CEDIS", "Zona"])["Puntaje Total"].mean().reset_index()
+            st.markdown(f"### 📈 Promedio Anual {filtro_ano}")
+            if not df_view.empty:
+                df_anual = df_view.groupby(["Nombre", "Perfil", "CEDIS", "Zona"])["Puntaje Total"].mean().reset_index()
                 df_anual = df_anual.sort_values(by="Puntaje Total", ascending=False).reset_index(drop=True)
-
                 for i, row in df_anual.iterrows():
                     rank = i + 1
                     icono = "👑" if rank == 1 else "⭐" if rank <= 3 else f"#{rank}"
-                    
                     with st.container():
                         c1, c2, c3 = st.columns([1, 4, 2])
                         c1.markdown(f"## {icono}")
@@ -310,23 +315,36 @@ elif menu == "🏆 Ver Rankings":
                         c3.metric("Promedio", f"{row['Puntaje Total']:.1f}")
                         st.divider()
             else:
-                st.info("No hay datos en este año para calcular el acumulado.")
+                st.info("No hay datos para calcular el acumulado con estos filtros.")
 
-        # --- ZONA DE DESCARGA SEGURA ---
+        # --- ZONA DE ADMINISTRACIÓN (SEGURA) ---
         st.markdown("---")
         st.markdown("### 🔐 Área Gerencia Nacional")
-        st.caption("Ingrese la contraseña para descargar la base de datos completa.")
-        
+        st.caption("Panel de Administración y Descarga")
         password = st.text_input("Contraseña:", type="password")
-        
+
         if password == "SAC2026":
+            st.success("✅ Modo Administrador Activado")
+            
+            # Switch para activar edición
+            modo_edicion = st.toggle("🛠️ Activar Edición de Datos (Base Completa)")
+            
+            if modo_edicion:
+                st.warning("⚠️ Editando la base de datos COMPLETA (sin filtros visuales).")
+                # Se edita df_original para no perder datos ocultos por filtros
+                df_editado = st.data_editor(df_original, num_rows="dynamic", key="editor_datos")
+                
+                if st.button("💾 Guardar Cambios en la Base de Datos"):
+                    df_editado.to_csv(DB_FILE, index=False)
+                    st.toast("¡Base de datos actualizada con éxito!")
+                    st.rerun()
+            
+            # Botón de descarga
             @st.cache_data
             def convert_df(df): return df.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Descargar Base Completa", convert_df(df_original), "ranking_sac_completo.csv", "text/csv")
             
-            st.success("✅ Acceso Concedido")
-            st.download_button("📥 Descargar Base Completa", convert_df(df), "ranking_sac_completo.csv", "text/csv")
         elif password:
             st.error("🚫 Contraseña incorrecta")
-
     else:
         st.info("Aún no hay datos registrados.")
