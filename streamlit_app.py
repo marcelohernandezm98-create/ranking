@@ -23,8 +23,7 @@ def guardar_datos(datos):
     else:
         df_nuevo.to_csv(DB_FILE, mode='a', header=False, index=False)
 
-# --- BARRA LATERAL (MODIFICADA: TÍTULO AZUL) ---
-# Título SAC grande en azul rey
+# --- BARRA LATERAL ---
 st.sidebar.markdown(
     """
     <div style='text-align: center; font-size: 60px; font-weight: bold; color: #4169E1; line-height: 1.2;'>
@@ -34,7 +33,6 @@ st.sidebar.markdown(
     unsafe_allow_html=True
 )
 
-# Slogan debajo
 st.sidebar.markdown(
     """
     <div style='text-align: center; font-style: italic; font-size: 14px; margin-bottom: 30px; color: #555;'>
@@ -96,6 +94,7 @@ if menu == "📝 Registrar Evaluación":
 
     with st.form("form_eval"):
         pts_totales = 0
+        desglose_txt = "" 
         
         # --- LÓGICA DE PERFILES ---
         if perfil == "Jefe SAC Mixto":
@@ -116,7 +115,9 @@ if menu == "📝 Registrar Evaluación":
             pts_merma = calcular_rango_porcentajes(merma, 10, 5)
             rotura = st.radio("Rotura Garrafón", ["En Objetivo", "Fuera de Objetivo"])
             pts_rot = 10 if rotura == "En Objetivo" else 0
+            
             pts_totales = pts_s + pts_v + pts_fr + pts_pr + pts_inv + pts_merma + pts_rot
+            desglose_txt = f"Salida:{pts_s} | Visita:{pts_v} | FR:{pts_fr} | Prox:{pts_pr} | Inv:{pts_inv} | Merma:{pts_merma} | Rot:{pts_rot}"
 
         elif perfil == "Jefe SAC Entrega" or perfil == "JT Mixto":
             st.info(f"Configuración {perfil}: Pesos Altos.")
@@ -129,7 +130,9 @@ if menu == "📝 Registrar Evaluación":
             pts_fr = 40 if fr >= 98 else (24 if fr >= 97 else (8 if fr >= 96 else 0))
             pr = c2.number_input("Proximidad %", 0.0, 100.0, 98.0, step=0.1)
             pts_pr = 20 if pr >= 98 else (12 if pr >= 97 else (4 if pr >= 96 else 0))
+            
             pts_totales = pts_s + pts_v + pts_fr + pts_pr
+            desglose_txt = f"Salida:{pts_s} | Visita:{pts_v} | FR:{pts_fr} | Prox:{pts_pr}"
 
         elif perfil == "Jefe SAC APT":
             st.info("Configuración APT Original.")
@@ -143,7 +146,9 @@ if menu == "📝 Registrar Evaluación":
             pts_merma = calcular_rango_porcentajes(merma, 20, 10)
             rotura = st.radio("Rotura Garrafón", ["En Objetivo", "Fuera de Objetivo"])
             pts_rot = 20 if rotura == "En Objetivo" else 0
+            
             pts_totales = pts_oos + pts_inv + pts_merma + pts_rot
+            desglose_txt = f"OOS:{pts_oos} | Inv:{pts_inv} | Merma:{pts_merma} | Rot:{pts_rot}"
 
         elif perfil == "JT Garrafón":
             st.info("Configuración JT Garrafón.")
@@ -158,7 +163,9 @@ if menu == "📝 Registrar Evaluación":
             pts_pr = 10 if pr >= 98 else (7 if pr >= 97 else (5 if pr >= 96 else 0))
             falseo = st.number_input("Falseo (Cantidad)", min_value=0, step=1)
             pts_fal = 20 if falseo < 4 else (10 if falseo <= 7 else 0)
+            
             pts_totales = pts_s + pts_v + pts_ep + pts_pr + pts_fal
+            desglose_txt = f"Salida:{pts_s} | Visita:{pts_v} | E.Perf:{pts_ep} | Prox:{pts_pr} | Falseo:{pts_fal}"
 
         elif perfil == "Jefe/Sup APT Garrafón/embotellado":
             st.info("Configuración APT Mixto.")
@@ -174,7 +181,9 @@ if menu == "📝 Registrar Evaluación":
             pts_rot = 20 if rotura == "En Objetivo" else 0
             t_salida = st.time_input("Salida de Rutas", time(7, 30), step=60)
             pts_salida = calcular_salida_base(t_salida)
+            
             pts_totales = pts_oos + pts_inv + pts_merma + pts_rot + pts_salida
+            desglose_txt = f"OOS:{pts_oos} | Inv:{pts_inv} | Merma:{pts_merma} | Rot:{pts_rot} | Salida:{pts_salida}"
 
         elif perfil == "Jefe/Sup APT Embotellado":
             st.info("Configuración APT Embotellado.")
@@ -188,7 +197,9 @@ if menu == "📝 Registrar Evaluación":
             pts_merma = calcular_rango_porcentajes(merma, 25, 12)
             t_salida = st.time_input("Salida de Rutas", time(7, 30), step=60)
             pts_salida = calcular_salida_base(t_salida)
+            
             pts_totales = pts_oos + pts_inv + pts_merma + pts_salida
+            desglose_txt = f"OOS:{pts_oos} | Inv:{pts_inv} | Merma:{pts_merma} | Salida:{pts_salida}"
 
         enviar = st.form_submit_button("💾 Guardar Evaluación")
 
@@ -202,6 +213,7 @@ if menu == "📝 Registrar Evaluación":
                 "Zona": zona,
                 "Perfil": perfil,
                 "Puntaje Total": pts_totales,
+                "Desglose": desglose_txt, 
                 "Fecha Reg": str(datetime.now().date())
             }
             guardar_datos(datos)
@@ -211,7 +223,7 @@ if menu == "📝 Registrar Evaluación":
             st.error("⚠️ Falta el nombre del colaborador.")
 
 # ==========================================
-# SECCIÓN 2: RANKINGS (MENSUAL Y ANUAL)
+# SECCIÓN 2: RANKINGS
 # ==========================================
 elif menu == "🏆 Ver Rankings":
     st.title("Tablero de Posiciones")
@@ -219,11 +231,11 @@ elif menu == "🏆 Ver Rankings":
     if os.path.isfile(DB_FILE):
         df = pd.read_csv(DB_FILE)
         
-        # --- CORRECCIÓN AUTOMÁTICA DE COLUMNAS NUEVAS ---
-        columnas_faltantes = ["Mes", "Año", "CEDIS", "Zona"]
+        # --- CORRECCIÓN AUTOMÁTICA ---
+        columnas_faltantes = ["Mes", "Año", "CEDIS", "Zona", "Desglose"]
         for col in columnas_faltantes:
             if col not in df.columns:
-                df[col] = "N/A" # Relleno por defecto para datos viejos
+                df[col] = "Sin detalles previos"
         
         if "Puntaje" in df.columns and "Puntaje Total" not in df.columns:
             df.rename(columns={"Puntaje": "Puntaje Total"}, inplace=True)
@@ -255,18 +267,18 @@ elif menu == "🏆 Ver Rankings":
                         c1.markdown(f"## {icono}")
                         c2.markdown(f"**{row['Nombre']}**")
                         c2.caption(f"{row['Perfil']} | {row['CEDIS']} - {row['Zona']}")
+                        c2.markdown(f"**🔍 Detalle:** `{row['Desglose']}`")
                         c3.metric("Puntos", f"{row['Puntaje Total']:.1f}")
                         st.divider()
             else:
                 st.info(f"No hay evaluaciones registradas para {mes_sel} del {filtro_ano}.")
 
-        # >>> TAB 2: ACUMULADO ANUAL (PROMEDIO) <<<
+        # >>> TAB 2: ACUMULADO ANUAL <<<
         with tab2:
             st.markdown(f"### 📈 Desempeño Anual {filtro_ano} (Promedio)")
-            st.caption("Se calcula el promedio de los meses evaluados hasta la fecha.")
+            st.caption("Promedio de puntos totales.")
             
             if not df.empty:
-                # Agrupar por Nombre y calcular promedio
                 df_anual = df.groupby(["Nombre", "Perfil", "CEDIS", "Zona"])["Puntaje Total"].mean().reset_index()
                 df_anual = df_anual.sort_values(by="Puntaje Total", ascending=False).reset_index(drop=True)
 
@@ -284,10 +296,22 @@ elif menu == "🏆 Ver Rankings":
             else:
                 st.info("No hay datos en este año para calcular el acumulado.")
 
-        # Botón descarga global
-        @st.cache_data
-        def convert_df(df): return df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Descargar Todo (Excel/CSV)", convert_df(df), "ranking_completo.csv", "text/csv")
+        # --- ZONA DE DESCARGA SEGURA ---
+        st.markdown("---")
+        st.markdown("### 🔐 Área Gerencia Nacional")
+        st.caption("Ingrese la contraseña para descargar la base de datos completa.")
+        
+        password = st.text_input("Contraseña:", type="password")
+        
+        # AQUÍ SE DEFINE LA CONTRASEÑA
+        if password == "SAC2026":
+            @st.cache_data
+            def convert_df(df): return df.to_csv(index=False).encode('utf-8')
+            
+            st.success("✅ Acceso Concedido")
+            st.download_button("📥 Descargar Base Completa", convert_df(df), "ranking_sac_completo.csv", "text/csv")
+        elif password:
+            st.error("🚫 Contraseña incorrecta")
 
     else:
         st.info("Aún no hay datos registrados.")
