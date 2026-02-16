@@ -1,13 +1,11 @@
 import streamlit as st
 import pandas as pd
 from datetime import time, datetime
-import os
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Ranking SAC Pro", layout="centered", page_icon="🏆")
-
-# --- BASE DE DATOS LOCAL (CSV) ---
-DB_FILE = "historial_ranking.csv"
 
 # --- CONSTANTES ---
 MESES = [
@@ -16,12 +14,48 @@ MESES = [
 ]
 ARQUETIPOS = {"E": 500, "D": 1000, "C": 2000, "B": 4000, "A": 10000}
 
-def guardar_datos(datos):
-    df_nuevo = pd.DataFrame([datos])
-    if not os.path.isfile(DB_FILE):
-        df_nuevo.to_csv(DB_FILE, index=False)
-    else:
-        df_nuevo.to_csv(DB_FILE, mode='a', header=False, index=False)
+# --- CONEXIÓN A GOOGLE SHEETS ---
+def get_sheet():
+    """Conecta con Google Sheets usando los secretos de Streamlit"""
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    # Cargamos las credenciales desde los secretos
+    creds_dict = dict(st.secrets["gcp_service_account"])
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    client = gspread.authorize(creds)
+    # Abre la hoja llamada 'Ranking SAC DB' (debe existir en tu Drive)
+    return client.open("Ranking SAC DB").sheet1
+
+def cargar_datos():
+    """Descarga los datos de la nube"""
+    try:
+        sheet = get_sheet()
+        data = sheet.get_all_records()
+        if not data:
+            return pd.DataFrame(columns=["Mes", "Año", "Nombre", "CEDIS", "Zona", "Perfil", "Puntaje Total", "Desglose", "Fecha Reg"])
+        return pd.DataFrame(data)
+    except Exception as e:
+        st.error(f"Error al conectar con Google Sheets: {e}")
+        return pd.DataFrame()
+
+def guardar_registro(datos):
+    """Sube un nuevo registro a la nube"""
+    sheet = get_sheet()
+    # Convertimos el diccionario a una lista en el orden correcto
+    fila = [
+        datos["Mes"], datos["Año"], datos["Nombre"], datos["CEDIS"], 
+        datos["Zona"], datos["Perfil"], datos["Puntaje Total"], 
+        datos["Desglose"], datos["Fecha Reg"]
+    ]
+    sheet.append_row(fila)
+
+def actualizar_base_completa(df):
+    """Borra y reescribe la base de datos (Para el modo Editor)"""
+    sheet = get_sheet()
+    sheet.clear()
+    # Escribimos encabezados
+    sheet.append_row(df.columns.tolist())
+    # Escribimos datos
+    sheet.append_rows(df.values.tolist())
 
 # --- BARRA LATERAL ---
 st.sidebar.markdown(
@@ -78,7 +112,6 @@ if menu == "📝 Registrar Evaluación":
     
     st.subheader("Datos del Colaborador")
     col1, col2 = st.columns(2)
-    # AQUÍ SE ACTUALIZÓ EL NOMBRE A JT EMBOTELLADO
     perfil = col1.selectbox("Perfil", [
         "Jefe SAC Mixto", "Jefe SAC Entrega", "JT Embotellado", "Jefe SAC APT", 
         "JT Garrafón", "Jefe/Sup APT Garrafón/embotellado", "Jefe/Sup APT Embotellado"
@@ -124,7 +157,6 @@ if menu == "📝 Registrar Evaluación":
             pts_totales = pts_s + pts_v + pts_fr + pts_pr + pts_inv + pts_merma + pts_rot
             desglose_txt = f"Salida:{pts_s} | Visita:{pts_v} | FR:{pts_fr} | Prox:{pts_pr} | Inv:{pts_inv} | Merma:{pts_merma} | Rot:{pts_rot}"
 
-        # AQUÍ SE ACTUALIZÓ LA LÓGICA PARA RECONOCER EL NUEVO NOMBRE
         elif perfil == "Jefe SAC Entrega" or perfil == "JT Embotellado":
             st.info(f"Configuración {perfil}: Pesos Altos.")
             c1, c2 = st.columns(2)
@@ -207,7 +239,7 @@ if menu == "📝 Registrar Evaluación":
             pts_totales = pts_oos + pts_inv + pts_merma + pts_salida
             desglose_txt = f"OOS:{pts_oos} | Inv:{pts_inv} | Merma:{pts_merma} | Salida:{pts_salida}"
 
-        enviar = st.form_submit_button("💾 Guardar Evaluación")
+        enviar = st.form_submit_button("💾 Guardar Evaluación en la Nube")
 
     if enviar:
         if nombre:
@@ -222,8 +254,9 @@ if menu == "📝 Registrar Evaluación":
                 "Desglose": desglose_txt, 
                 "Fecha Reg": str(datetime.now().date())
             }
-            guardar_datos(datos)
-            st.success(f"✅ Registrado: {nombre} | {mes_eval} {ano_eval} | Puntos: {pts_totales}")
+            with st.spinner("Subiendo datos a Google Sheets..."):
+                guardar_registro(datos)
+            st.success(f"✅ Registrado exitosamente: {nombre} | Puntos: {pts_totales}")
             if pts_totales >= 95: st.balloons()
         else:
             st.error("⚠️ Falta el nombre del colaborador.")
@@ -233,46 +266,37 @@ if menu == "📝 Registrar Evaluación":
 # ==========================================
 elif menu == "🏆 Ver Rankings":
     st.title("Tablero de Posiciones")
+    
+    # Cargar datos desde Google Sheets
+    with st.spinner("Descargando información actualizada..."):
+        df_original = cargar_datos()
 
-    if os.path.isfile(DB_FILE):
-        # Cargar dataframe original
-        df_original = pd.read_csv(DB_FILE)
+    if not df_original.empty:
+        # Asegurar tipos de datos correctos
+        df_original["Puntaje Total"] = pd.to_numeric(df_original["Puntaje Total"], errors='coerce')
         
-        # Corrección de columnas faltantes
-        for col in ["Mes", "Año", "CEDIS", "Zona", "Desglose"]:
-            if col not in df_original.columns: df_original[col] = "Sin detalle"
-        if "Puntaje" in df_original.columns and "Puntaje Total" not in df_original.columns:
-            df_original.rename(columns={"Puntaje": "Puntaje Total"}, inplace=True)
-            df_original.to_csv(DB_FILE, index=False)
-
-        # Copia para filtrar visualmente (sin afectar la base para edición)
+        # Copia para filtrar visualmente
         df_view = df_original.copy()
 
         # --- BARRA DE FILTROS ---
         st.markdown("### 🔎 Filtros de Búsqueda")
         c_ano, c_perfil, c_zona, c_cedis = st.columns(4)
         
-        # 1. Filtro Año
+        # Filtros
         filtro_ano = c_ano.selectbox("Año", df_view["Año"].unique())
         df_view = df_view[df_view["Año"] == filtro_ano]
 
-        # 2. Filtro Perfil (Multiselección)
         opciones_perfil = df_view["Perfil"].unique()
         sel_perfil = c_perfil.multiselect("Perfil", opciones_perfil, placeholder="Todos")
-        if sel_perfil:
-            df_view = df_view[df_view["Perfil"].isin(sel_perfil)]
+        if sel_perfil: df_view = df_view[df_view["Perfil"].isin(sel_perfil)]
 
-        # 3. Filtro Zona (Multiselección)
         opciones_zona = df_view["Zona"].unique()
         sel_zona = c_zona.multiselect("Zona", opciones_zona, placeholder="Todas")
-        if sel_zona:
-            df_view = df_view[df_view["Zona"].isin(sel_zona)]
+        if sel_zona: df_view = df_view[df_view["Zona"].isin(sel_zona)]
 
-        # 4. Filtro CEDIS (Multiselección)
         opciones_cedis = df_view["CEDIS"].unique()
         sel_cedis = c_cedis.multiselect("CEDIS", opciones_cedis, placeholder="Todos")
-        if sel_cedis:
-            df_view = df_view[df_view["CEDIS"].isin(sel_cedis)]
+        if sel_cedis: df_view = df_view[df_view["CEDIS"].isin(sel_cedis)]
 
         st.divider()
 
@@ -297,7 +321,7 @@ elif menu == "🏆 Ver Rankings":
                         c3.metric("Puntos", f"{row['Puntaje Total']:.1f}")
                         st.divider()
             else:
-                st.info(f"No hay evaluaciones para {mes_sel} del {filtro_ano} con los filtros actuales.")
+                st.info(f"No hay evaluaciones para {mes_sel} del {filtro_ano}.")
 
         with tab2:
             st.markdown(f"### 📈 Promedio Anual {filtro_ano}")
@@ -315,7 +339,7 @@ elif menu == "🏆 Ver Rankings":
                         c3.metric("Promedio", f"{row['Puntaje Total']:.1f}")
                         st.divider()
             else:
-                st.info("No hay datos para calcular el acumulado con estos filtros.")
+                st.info("No hay datos para calcular el acumulado.")
 
         # --- ZONA DE ADMINISTRACIÓN (SEGURA) ---
         st.markdown("---")
@@ -326,20 +350,18 @@ elif menu == "🏆 Ver Rankings":
         if password == "SAC2026":
             st.success("✅ Modo Administrador Activado")
             
-            # Switch para activar edición
             modo_edicion = st.toggle("🛠️ Activar Edición de Datos (Base Completa)")
             
             if modo_edicion:
-                st.warning("⚠️ Editando la base de datos COMPLETA (sin filtros visuales).")
-                # Se edita df_original para no perder datos ocultos por filtros
+                st.warning("⚠️ CUIDADO: Estás editando la hoja de Google Sheets en tiempo real.")
                 df_editado = st.data_editor(df_original, num_rows="dynamic", key="editor_datos")
                 
-                if st.button("💾 Guardar Cambios en la Base de Datos"):
-                    df_editado.to_csv(DB_FILE, index=False)
+                if st.button("💾 Guardar Cambios en Google Sheets"):
+                    with st.spinner("Actualizando la nube..."):
+                        actualizar_base_completa(df_editado)
                     st.toast("¡Base de datos actualizada con éxito!")
                     st.rerun()
             
-            # Botón de descarga
             @st.cache_data
             def convert_df(df): return df.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Descargar Base Completa", convert_df(df_original), "ranking_sac_completo.csv", "text/csv")
@@ -347,4 +369,4 @@ elif menu == "🏆 Ver Rankings":
         elif password:
             st.error("🚫 Contraseña incorrecta")
     else:
-        st.info("Aún no hay datos registrados.")
+        st.info("No se encontraron datos en la hoja de Google Sheets.")
