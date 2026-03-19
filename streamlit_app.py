@@ -10,9 +10,6 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.colors import HexColor
 from reportlab.lib.units import inch
-from reportlab.pdfbase import pdfbase
-from reportlab.pdfbase.ttfonts import TTFont
-
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Ranking SAC Pro", layout="centered", page_icon="🏆")
 
