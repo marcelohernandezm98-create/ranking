@@ -10,6 +10,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.colors import HexColor
 from reportlab.lib.units import inch
+
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Ranking SAC Pro", layout="centered", page_icon="🏆")
 
@@ -61,13 +62,25 @@ def actualizar_base_completa(df):
 # FUNCIÓN GENERACIÓN PDF (DIPLOMA)
 # ==========================================
 def generar_diploma_pdf(colaborador_dict):
-    """Genera el PDF del diploma Opción 1 limpia en memoria"""
+    """Genera el PDF del diploma con datos de Región, CEDIS y Área dinámica"""
     
     nombre = colaborador_dict["Nombre"]
     puntos = f"{colaborador_dict['Puntaje Total']:.1f}"
     mes = colaborador_dict["Mes"]
     ano = str(colaborador_dict["Año"])
     rank = colaborador_dict["Lugar"]
+    cedis = colaborador_dict["CEDIS"]
+    perfil = colaborador_dict["Perfil"]
+    
+    # Lógica para determinar el Área exacta según el perfil
+    if perfil in ["Jefe SAC APT", "Jefe/Sup APT Garrafón/embotellado", "Jefe/Sup APT Embotellado"]:
+        area_texto = "Almacén"
+    elif perfil in ["Jefe SAC Entrega", "JT Embotellado", "JT Garrafón"]:
+        area_texto = "Entrega"
+    elif perfil == "Jefe SAC Mixto":
+        area_texto = "Almacén/Entrega"
+    else:
+        area_texto = "Operaciones" # Respaldo por si acaso
     
     color_gold = HexColor("#C5A02F")
     color_silver = HexColor("#C0C0C0")
@@ -111,26 +124,31 @@ def generar_diploma_pdf(colaborador_dict):
     c.setFont("Helvetica-Bold", 35)
     c.drawCentredString(w/2, h - 230, rank_text)
     
+    # NOMBRE DEL GANADOR
     c.setFillColor(color_navy)
     c.setFont("Helvetica-Bold", 45)
-    c.drawCentredString(w/2, h - 300, nombre.upper())
+    c.drawCentredString(w/2, h - 290, nombre.upper())
     
+    # REGIÓN Y CEDIS
+    c.setFont("Helvetica-Bold", 16)
+    c.drawCentredString(w/2, h - 325, f"Región Centro | CEDIS {cedis}")
+    
+    # PÁRRAFO DE LOGRO (Con área dinámica corregida)
     c.setFont("Helvetica", 16)
-    c.drawCentredString(w/2, h - 340, "Por su destacado desempeño en los indicadores de")
-    c.drawCentredString(w/2, h - 360, f"servicio y distribución durante el mes de {mes} {ano},")
-    c.drawCentredString(w/2, h - 380, f"obteniendo un puntaje de {puntos} pts.")
+    c.drawCentredString(w/2, h - 365, "Por su destacado desempeño en los indicadores de")
+    c.drawCentredString(w/2, h - 385, f"{area_texto} durante el mes de {mes} {ano},")
+    c.drawCentredString(w/2, h - 405, f"obteniendo un puntaje de {puntos} pts.")
     
-    c.setFont("Helvetica-Bold", 14)
+    # MISIÓN SAC
+    c.setFont("Helvetica-BoldOblique", 13)
     c.setFillColor(color_navy)
-    c.drawCentredString(w/2, h - 420, "Misión SAC: Hacer bien las cosas a la primera")
-    
-    c.setFont("Helvetica", 14)
-    c.drawCentredString(w/2, h - 450, f"{mes} {ano}")
+    c.drawCentredString(w/2, h - 445, '"Servicio de Excelencia con Operación de alto desempeño y Productividad')
+    c.drawCentredString(w/2, h - 465, 'a Bajo Costo, haciendo las cosas bien y a la primera."')
     
     # 3. FIRMAS
     c.setLineWidth(1)
     c.setStrokeColor(color_navy)
-    y_firmas = 80
+    y_firmas = 70
     w_firma = 200
     
     x_f1 = w/4
@@ -401,7 +419,6 @@ elif menu == "🏆 Ver Rankings":
         with tab1:
             mes_sel = st.selectbox("Selecciona Mes", MESES)
             
-            # --- NUEVO: CANDADO DE SEGURIDAD PARA DIPLOMAS ---
             st.markdown("---")
             col_candado, _ = st.columns([1, 1])
             pass_diploma = col_candado.text_input("🔐 Contraseña para habilitar Diplomas:", type="password", key="pass_dip")
@@ -426,7 +443,6 @@ elif menu == "🏆 Ver Rankings":
                         with c3:
                             st.metric("Puntos", f"{row['Puntaje Total']:.1f}")
                             if rank <= 3:
-                                # LÓGICA DE CONTRASEÑA PARA MOSTRAR BOTÓN
                                 if pass_diploma == "SAC2026":
                                     colaborador_pdf = row.to_dict()
                                     colaborador_pdf["Lugar"] = rank 
